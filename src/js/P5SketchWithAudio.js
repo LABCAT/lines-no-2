@@ -4,9 +4,10 @@ import "p5/lib/addons/p5.sound";
 import * as p5 from "p5";
 import { Midi } from '@tonejs/midi'
 import PlayIcon from './functions/PlayIcon.js';
+import AnimatedLine from './classes/AnimatedLine.js';
 
-import audio from "../audio/circles-no-3.ogg";
-import midi from "../audio/circles-no-3.mid";
+import audio from "../audio/lines-no-2.ogg";
+import midi from "../audio/lines-no-2.mid";
 
 const P5SketchWithAudio = () => {
     const sketchRef = useRef();
@@ -27,10 +28,13 @@ const P5SketchWithAudio = () => {
 
         p.grid = [];
 
+        p.randomColours = [];
+
         p.loadMidi = () => {
             Midi.fromUrl(midi).then(
                 function(result) {
-                    const noteSet1 = result.tracks[5].notes; // Synth 1
+                    console.log(result);
+                    const noteSet1 = result.tracks[3].notes; // Synth 1 - Harponic
                     p.scheduleCueSet(noteSet1, 'executeCueSet1');
                     p.audioLoaded = true;
                     document.getElementById("loader").classList.add("loading--complete");
@@ -64,8 +68,15 @@ const P5SketchWithAudio = () => {
             p.canvas = p.createCanvas(p.canvasWidth, p.canvasHeight);
             p.background(255);
             p.rectMode(p.CENTER);
+            const randomColor = require('randomcolor');
+            p.randomColours = randomColor({
+                luminosity: 'bright',
+                format: 'rgb',
+                count: 16
+            });
+            console.log(p.randomColours);
 
-             for (let i = 0; i < 16; i++) {
+            for (let i = 0; i < 16; i++) {
                 for (let j = 0; j < 16; j++) {
                     p.grid.push(
                         {
@@ -79,52 +90,60 @@ const P5SketchWithAudio = () => {
             }
         }
 
+        p.animatedLines1 = [];
+
         p.draw = () => {
+            // for (let i = 0; i < p.grid.length; i++) {
+            //     const cell = p.grid[i],
+            //         { x, y, width, height } = cell;
+            //         p.stroke(0);
+            //         p.noFill();
+            //         p.rect(x, y, width, height);
+            // }
             if(p.audioLoaded && p.song.isPlaying()){
-
+                // p.translate(p.width /2, p.height /2);
+                // p.scale(0.2);
+                for (let i = 0; i < p.animatedLines1.length; i++) {
+                    const line = p.animatedLines1[i];
+                    line.draw();
+                }
             }
 
-            for (let i = 0; i < p.grid.length; i++) {
-                const cell = p.grid[i],
-                    { x, y, width, height } = cell;
-                    p.stroke(0);
-                    p.noFill();
-                    p.rect(x, y, width, height);
-            }
+            
         }
 
         p.beginX = 0;
         p.beginY = 0;
         p.endX = 0;
         p.endY = 0;
+        
 
         p.executeCueSet1 = (note) => {
-            const cell = p.random(p.grid);
-            console.log(cell);
+            const cell = p.random(p.grid),
+                nextCell  = p.random(p.grid);
+            if(!p.randomColour) {
+                p.randomColour = p.color(p.random(255), p.random(255), p.random(255));
+            }
             if(p.beginX === 0 && p.beginY === 0){
                 p.beginX = cell.x; 
                 p.beginY = cell.y; 
-                p.fill(p.random(255), p.random(255), p.random(255));
-                p.ellipse(p.beginX, p.beginY, p.height/ 32, p.height/ 32);
             }
-            else {
-                p.endX = cell.x; 
-                p.endY = cell.y; 
-                const distX = p.endX - p.beginX, // X-axis distance to move
-                    distY = p.endY - p.beginY; // Y-axis distance to move
-                let x = 0.0, // Current x-coordinate
-                    y = 0.0; // Current y-coordinate
-                p.fill(p.random(255), p.random(255), p.random(255));
-                p.noStroke();
-                for (let i = 0; i < 1.0; i=i+0.001) {
-                    x = p.beginX + i * distX;
-                    y = p.beginY +p. pow(i, 4) * distY;
-                    p.ellipse(x, y, p.height/ 32, p.height/ 32);
-                }
-                p.beginX = p.endX; 
-                p.beginY = p.endY; 
-            }
-            
+            p.endX = nextCell.x; 
+            p.endY = nextCell.y; 
+            p.animatedLines1.push(
+                new AnimatedLine(
+                    p,
+                    p.beginX,
+                    p.beginY,
+                    p.endX,
+                    p.endY,
+                    note.duration,
+                    p.randomColours[note.currentCue % 16],
+                    p.randomColours[note.currentCue % 16 === 15 ? 0 : (note.currentCue % 16 + 1)],
+                )
+            );
+            p.beginX = p.endX; 
+            p.beginY = p.endY; 
         }
 
         p.mousePressed = () => {
