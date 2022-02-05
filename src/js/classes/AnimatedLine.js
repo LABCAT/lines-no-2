@@ -13,12 +13,6 @@ export default class AnimatedLine {
         this.y = 0.0; // Current y-coordinate
         this.pointIndex = 0;
         this.totalsFrames = this.p.frameRate() * lifetime;
-        console.log(this.totalsFrames);
-        
-    }
-
-    update() {
-        
     }
 
     draw() {

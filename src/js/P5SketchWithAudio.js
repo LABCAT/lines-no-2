@@ -35,7 +35,9 @@ const P5SketchWithAudio = () => {
                 function(result) {
                     console.log(result);
                     const noteSet1 = result.tracks[3].notes; // Synth 1 - Harponic
+                    const noteSet2 = result.tracks[4].notes; // Sampler 1 Copy - Organ B3FilWhMod
                     p.scheduleCueSet(noteSet1, 'executeCueSet1');
+                    p.scheduleCueSet(noteSet2, 'executeCueSet2');
                     p.audioLoaded = true;
                     document.getElementById("loader").classList.add("loading--complete");
                     document.getElementById("play-icon").classList.remove("fade-out");
@@ -64,51 +66,68 @@ const P5SketchWithAudio = () => {
             }
         } 
 
+        p.backgroundColour = 255;
+
         p.setup = () => {
             p.canvas = p.createCanvas(p.canvasWidth, p.canvasHeight);
-            p.background(255);
+            p.background(0);
             p.rectMode(p.CENTER);
             const randomColor = require('randomcolor');
             p.randomColours = randomColor({
                 luminosity: 'bright',
                 format: 'rgb',
-                count: 16
+                count: 15
             });
-            console.log(p.randomColours);
 
-            for (let i = 0; i < 16; i++) {
-                for (let j = 0; j < 16; j++) {
+            const gridWidthHeight = 8;
+            for (let i = 0; i < gridWidthHeight; i++) {
+                for (let j = 0; j < gridWidthHeight; j++) {
                     p.grid.push(
                         {
-                            x: p.width/ 16 * i + p.width/ 32, 
-                            y: p.height/ 16 * j + p.height / 32, 
-                            width: p.width/ 16, 
-                            height: p.height/ 16
+                            x: p.width/ gridWidthHeight * j + p.width/ gridWidthHeight / 2, 
+                            y: p.height/ gridWidthHeight * i + p.height / gridWidthHeight / 2, 
+                            width: p.width/ gridWidthHeight, 
+                            height: p.height/ gridWidthHeight
                         }
                     );
                 }   
             }
         }
 
-        p.animatedLines1 = [];
+        p.animatedLinesDrawings1 = [];
 
         p.draw = () => {
-            // for (let i = 0; i < p.grid.length; i++) {
-            //     const cell = p.grid[i],
-            //         { x, y, width, height } = cell;
-            //         p.stroke(0);
-            //         p.noFill();
-            //         p.rect(x, y, width, height);
-            // }
+            let cellCount = 0;
+            for (let i = 0; i < p.grid.length; i++) {
+                const cell = p.grid[i],
+                    { x, y, width, height } = cell,
+                    colour = cellCount % 2 === 1 ? 0 : 255;
+                // p.noStroke();
+                // p.fill(colour);
+                // p.rect(x, y, width, height);
+                cellCount++
+            }
             if(p.audioLoaded && p.song.isPlaying()){
-                // p.translate(p.width /2, p.height /2);
-                // p.scale(0.2);
-                for (let i = 0; i < p.animatedLines1.length; i++) {
-                    const line = p.animatedLines1[i];
+                
+                for (let i = 0; i < p.animatedLinesDrawings1.length; i++) {
+                    const lineSet = p.animatedLinesDrawings1[i],
+                        { scale, translateX, translateY, lines } = lineSet;
+                    p.push();
+                    p.translate(translateX, translateY);
+                    p.scale(scale);
+                    for (let j = 0; j < lines.length; j++) {
+                        const line = lines[j];
+                        line.draw();
+                    }
+                    p.translate(-translateX, -translateY);
+                    p.pop();
+                }
+
+                for (let i = 0; i < p.animatedLinesDrawings2.length; i++) {
+                    const line = p.animatedLinesDrawings2[i];
                     line.draw();
                 }
             }
-
             
         }
 
@@ -116,21 +135,36 @@ const P5SketchWithAudio = () => {
         p.beginY = 0;
         p.endX = 0;
         p.endY = 0;
-        
+        p.currentIndex = 0;        
 
         p.executeCueSet1 = (note) => {
-            const cell = p.random(p.grid),
-                nextCell  = p.random(p.grid);
-            if(!p.randomColour) {
-                p.randomColour = p.color(p.random(255), p.random(255), p.random(255));
+            const { currentCue } = note;
+            if(currentCue % 15 === 1){
+                const randomColor = require('randomcolor');
+                p.randomColours = randomColor({
+                    luminosity: 'bright',
+                    format: 'rgb',
+                    count: 15
+                });
+                
+                if(currentCue > 1){
+                    p.currentIndex++;
+                }
+                p.currentCell = p.grid[p.currentIndex % 4];
+                p.beginX = p.random(0, p.width); 
+                p.beginY = p.random(0, p.height); 
             }
-            if(p.beginX === 0 && p.beginY === 0){
-                p.beginX = cell.x; 
-                p.beginY = cell.y; 
+            if(typeof p.animatedLinesDrawings1[p.currentIndex] === 'undefined'){
+                p.animatedLinesDrawings1[p.currentIndex] = {
+                    scale: p.random(0.05, 0.2),
+                    translateX: p.random(0, p.width - p.width / 4),
+                    translateY: p.random(0, p.height - p.height / 4),
+                    lines: []
+                };
             }
-            p.endX = nextCell.x; 
-            p.endY = nextCell.y; 
-            p.animatedLines1.push(
+            p.endX = p.random(0, p.width); 
+            p.endY = p.random(0, p.height); 
+            p.animatedLinesDrawings1[p.currentIndex].lines.push(
                 new AnimatedLine(
                     p,
                     p.beginX,
@@ -138,12 +172,26 @@ const P5SketchWithAudio = () => {
                     p.endX,
                     p.endY,
                     note.duration,
-                    p.randomColours[note.currentCue % 16],
-                    p.randomColours[note.currentCue % 16 === 15 ? 0 : (note.currentCue % 16 + 1)],
+                    p.randomColours[note.currentCue % 15],
+                    p.randomColours[note.currentCue % 15 === 14 ? 0 : (note.currentCue % 15 + 1)],
                 )
             );
             p.beginX = p.endX; 
             p.beginY = p.endY; 
+        }
+
+        p.animatedLinesDrawings2 = [];
+
+        p.executeCueSet2 = (note) => {
+            const pattern = [...p.animatedLinesDrawings1[0]],
+                index = note.currentCue % 15; 
+                console.log(index);
+                console.log(pattern.lines);
+                console.log(pattern.lines[index]);
+            if(typeof p.animatedLinesDrawings2[index] === 'undefined'){    
+                pattern.lines[index].pointIndex = 0;
+                p.animatedLinesDrawings2[index] = pattern.lines[index];
+            }
         }
 
         p.mousePressed = () => {
