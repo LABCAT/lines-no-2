@@ -1,4 +1,4 @@
-export default class AnimatedLine {
+export default class AnimatedLineSegments {
     constructor(p5, beginX, beginY, endX, endY, lifetime, fromColour, toColour, canDraw = true) {
         this.p = p5;
         this.beginX = beginX; 
@@ -19,11 +19,14 @@ export default class AnimatedLine {
     setLifeTime(lifetime) {
         const frameRate = this.p.getFrameRate() ? this.p.getFrameRate() : 60;
         this.totalsFrames = frameRate * lifetime;
+        this.currentFrame = 1;
     }
 
     draw() {
         if(this.canDraw && this.pointIndex < 1.0) {
-            const fill = this.p.lerpColor(this.fromColour, this.toColour, this.pointIndex);
+            const fill = this.p.lerpColor(this.fromColour, this.toColour, this.pointIndex),
+                alpha = this.currentFrame % 2 ? 100 : 0;
+            fill.setAlpha(alpha)
             this.p.fill(fill);
             this.p.noStroke();
             for (let i = 0; i < 1000 / this.totalsFrames; i++) {
@@ -32,7 +35,7 @@ export default class AnimatedLine {
                 this.p.ellipse(this.x, this.y, this.p.height/ 64, this.p.height/ 64);
                 this.pointIndex += 0.001;    
             }
-            
+            this.currentFrame++;
         }
         
     }
